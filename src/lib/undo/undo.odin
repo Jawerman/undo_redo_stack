@@ -3,17 +3,32 @@ package undo
 import "core:fmt"
 import "core:slice"
 
-Undo_Stack :: struct($T: typeid) {
-	stack:                   []T,
-	top:                     int,
-	current:                 int,
-	bottom:                  int,
+Undo_Stack_Config :: struct {
 	bottom_override_allowed: bool,
-	is_bottom_locked:        bool,
 }
 
-undo_stack_add :: proc(u: ^Undo_Stack($T), elem: ^T) {
-	if u.is_bottom_locked {
+Undo_Stack :: struct($T: typeid) {
+	stack:               []T,
+	top:                 int,
+	current:             int,
+	bottom:              int,
+	config:              Undo_Stack_Config,
+	skip_current_on_add: bool,
+}
+
+stack_create :: proc($T: typeid, size: int, config := Undo_Stack_Config{}, allocator := context.allocator) -> Undo_Stack(T) {
+	return Undo_Stack(T){
+		config = config,
+		stack = make([]T, size, allocator = allocator)
+	}
+}
+
+stack_destroy :: proc(u: ^Undo_Stack($T)) {
+	delete(u.stack)
+}
+
+stack_add :: proc(u: ^Undo_Stack($T), elem: ^T) {
+	if u.skip_current_on_add {
 		u.current = normalize_stack_index(u.current + 1, len(u.stack))
 		u.top = u.current
 		if u.bottom == u.top {
@@ -21,28 +36,27 @@ undo_stack_add :: proc(u: ^Undo_Stack($T), elem: ^T) {
 		}
 	}
 	u.stack[u.current] = elem^
-	u.is_bottom_locked = true
+	u.skip_current_on_add = true
 }
 
-undo_stack_reset :: proc(u: ^Undo_Stack($T)) {
+stack_reset :: proc(u: ^Undo_Stack($T)) {
 	slice.zero(u.stack)
 	u.bottom = 0
 	u.top = 0
 	u.current = 0
-	u.is_bottom_locked = false
+	u.skip_current_on_add = false
 }
 
-undo_stack_undo :: proc(u: ^Undo_Stack($T)) -> (^T, bool) {
+stack_undo :: proc(u: ^Undo_Stack($T)) -> (^T, bool) {
 	if u.current == u.bottom do return nil, false
 	u.current = normalize_stack_index(u.current - 1, len(u.stack))
-	fmt.println(u.bottom, u.top)
-	if u.bottom_override_allowed && u.bottom == u.current {
-		u.is_bottom_locked = false
+	if u.config.bottom_override_allowed && u.bottom == u.current {
+		u.skip_current_on_add = false
 	}
 	return &u.stack[u.current], true
 }
 
-undo_stack_redo :: proc(u: ^Undo_Stack($T)) -> (^T, bool) {
+stack_redo :: proc(u: ^Undo_Stack($T)) -> (^T, bool) {
 	if u.current == u.top do return nil, false
 	u.current = normalize_stack_index(u.current + 1, len(u.stack))
 	return &u.stack[u.current], true
@@ -55,14 +69,14 @@ normalize_stack_index :: proc(index, stack_size: int) -> int {
 }
 
 
-undo_stack_get_current_index :: #force_inline proc(u: ^Undo_Stack($T)) -> int {
+stack_get_current_index :: #force_inline proc(u: ^Undo_Stack($T)) -> int {
 	return u.current
 }
 
-undo_stack_get_top_index :: #force_inline proc(u: ^Undo_Stack($T)) -> int {
+stack_get_top_index :: #force_inline proc(u: ^Undo_Stack($T)) -> int {
 	return u.top
 }
 
-undo_stack_get_bottom_index :: #force_inline proc(u: ^Undo_Stack($T)) -> int {
+stack_get_bottom_index :: #force_inline proc(u: ^Undo_Stack($T)) -> int {
 	return u.bottom
 }

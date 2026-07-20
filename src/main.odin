@@ -1,15 +1,12 @@
 package main
 import "core:fmt"
-import "core:mem"
-import "core:slice"
-import "core:strings"
 import "lib/undo"
 import rl "vendor:raylib"
 
 test_stack: undo.Undo_Stack(int)
 
 WIDTH, HEIGHT :: 800, 600
-STACK_SIZE :: 10
+STACK_SIZE :: 5
 STACK_BLOCK_DRAW_SIZE :: [2]i32{100, 50}
 STACK_TOTAL_HEIGHT :: STACK_SIZE * STACK_BLOCK_DRAW_SIZE.y
 STACK_DRAWING_POSITION :: [2]i32{20, 50}
@@ -30,9 +27,8 @@ INDICATOR_TEXTS: [Indicators]string = {
 BLOCK_INDICATORS_GAP :: 20
 
 main :: proc() {
-	stack_content: [STACK_SIZE]int
-	test_stack.stack = stack_content[:]
-	test_stack.bottom_override_allowed = true
+	test_stack := undo.stack_create(int, STACK_SIZE)
+	defer undo.stack_destroy(&test_stack)
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WIDTH, HEIGHT, "Test window")
@@ -42,27 +38,26 @@ main :: proc() {
 	state := 0
 	next_state := state + 1
 
-	// undo.undo_stack_add(&test_stack, &state)
 	for !rl.WindowShouldClose() {
 
 		if rl.IsKeyPressed(.A) {
 			state = next_state
 			next_state += 1
-			undo.undo_stack_add(&test_stack, &state)
+			undo.stack_add(&test_stack, &state)
 		}
 		if rl.IsKeyPressed(.R) {
 			state = 0
 			next_state = state + 1
-			undo.undo_stack_reset(&test_stack)
+			undo.stack_reset(&test_stack)
 		}
 
 		if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.Z) {
 			if rl.IsKeyDown(.LEFT_SHIFT) {
-				if redo_state, can_redo := undo.undo_stack_redo(&test_stack); can_redo {
+				if redo_state, can_redo := undo.stack_redo(&test_stack); can_redo {
 					state = redo_state^
 				}
 			} else {
-				if undo_state, can_undo := undo.undo_stack_undo(&test_stack); can_undo {
+				if undo_state, can_undo := undo.stack_undo(&test_stack); can_undo {
 					state = undo_state^
 				}
 			}
@@ -72,7 +67,7 @@ main :: proc() {
 		defer rl.EndDrawing()
 		rl.ClearBackground(rl.BLACK)
 
-		current_state := fmt.ctprint(state)
+		current_state := fmt.ctprint("current_state: ", state, " next_state: ", next_state)
 		rl.DrawText(current_state, BLOCK_INDICATORS_GAP, BLOCK_INDICATORS_GAP, 20, rl.WHITE)
 
 		draw_stack(&test_stack)
@@ -109,9 +104,9 @@ draw_stack :: proc(u: ^undo.Undo_Stack(int)) {
 
 		present_indicators: [Indicators]bool
 
-		present_indicators[.Top] = index == undo.undo_stack_get_top_index(u)
-		present_indicators[.Current] = index == undo.undo_stack_get_current_index(u)
-		present_indicators[.Bottom] = index == undo.undo_stack_get_bottom_index(u)
+		present_indicators[.Top] = index == undo.stack_get_top_index(u)
+		present_indicators[.Current] = index == undo.stack_get_current_index(u)
+		present_indicators[.Bottom] = index == undo.stack_get_bottom_index(u)
 
 		half_block_width := STACK_BLOCK_DRAW_SIZE.x / 2
 		indicators_position := text_position.x + half_block_width + BLOCK_INDICATORS_GAP
