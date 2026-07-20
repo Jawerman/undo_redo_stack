@@ -32,16 +32,17 @@ BLOCK_INDICATORS_GAP :: 20
 main :: proc() {
 	stack_content: [STACK_SIZE]int
 	test_stack.stack = stack_content[:]
+	test_stack.bottom_override_allowed = true
 
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WIDTH, HEIGHT, "Test window")
 	rl.SetTargetFPS(60)
 	defer rl.CloseWindow()
 
-	state := 1
+	state := 0
 	next_state := state + 1
 
-	undo.undo_stack_add(&test_stack, &state)
+	// undo.undo_stack_add(&test_stack, &state)
 	for !rl.WindowShouldClose() {
 
 		if rl.IsKeyPressed(.A) {
@@ -50,7 +51,7 @@ main :: proc() {
 			undo.undo_stack_add(&test_stack, &state)
 		}
 		if rl.IsKeyPressed(.R) {
-			state = 1
+			state = 0
 			next_state = state + 1
 			undo.undo_stack_reset(&test_stack)
 		}

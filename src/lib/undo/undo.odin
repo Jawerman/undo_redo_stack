@@ -2,16 +2,18 @@ package undo
 
 import "core:fmt"
 import "core:slice"
+
 Undo_Stack :: struct($T: typeid) {
-	stack:       []T,
-	top:         int,
-	current:     int,
-	bottom:      int,
-	has_content: bool,
+	stack:                   []T,
+	top:                     int,
+	current:                 int,
+	bottom:                  int,
+	bottom_override_allowed: bool,
+	is_bottom_locked:        bool,
 }
 
 undo_stack_add :: proc(u: ^Undo_Stack($T), elem: ^T) {
-	if u.has_content {
+	if u.is_bottom_locked {
 		u.current = normalize_stack_index(u.current + 1, len(u.stack))
 		u.top = u.current
 		if u.bottom == u.top {
@@ -19,7 +21,7 @@ undo_stack_add :: proc(u: ^Undo_Stack($T), elem: ^T) {
 		}
 	}
 	u.stack[u.current] = elem^
-	u.has_content = true
+	u.is_bottom_locked = true
 }
 
 undo_stack_reset :: proc(u: ^Undo_Stack($T)) {
@@ -27,12 +29,16 @@ undo_stack_reset :: proc(u: ^Undo_Stack($T)) {
 	u.bottom = 0
 	u.top = 0
 	u.current = 0
-	u.has_content = false
+	u.is_bottom_locked = false
 }
 
 undo_stack_undo :: proc(u: ^Undo_Stack($T)) -> (^T, bool) {
 	if u.current == u.bottom do return nil, false
 	u.current = normalize_stack_index(u.current - 1, len(u.stack))
+	fmt.println(u.bottom, u.top)
+	if u.bottom_override_allowed && u.bottom == u.current {
+		u.is_bottom_locked = false
+	}
 	return &u.stack[u.current], true
 }
 
