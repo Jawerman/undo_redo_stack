@@ -1,9 +1,16 @@
+// Demo visual del undo/redo stack usando Raylib.
+// Muestra un buffer circular con indicadores de top, current y bottom.
+//
+// Controles:
+//   A             — Añadir siguiente estado
+//   R             — Reset de la stack
+//   Ctrl+Z        — Undo
+//   Ctrl+Shift+Z  — Redo
 package main
+
 import "core:fmt"
 import "lib/undo"
 import rl "vendor:raylib"
-
-test_stack: undo.Undo_Stack(int)
 
 WIDTH, HEIGHT :: 800, 600
 STACK_SIZE :: 5
@@ -77,6 +84,9 @@ main :: proc() {
 }
 
 
+// draw_stack dibuja el buffer circular como una columna de bloques.
+// Cada bloque muestra su valor y los indicadores top/current/bottom
+// si el índice coincide con el puntero correspondiente.
 draw_stack :: proc(u: ^undo.Undo_Stack(int)) {
 	for &state, index in u.stack {
 		block_relative_position := [2]i32 {
